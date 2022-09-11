@@ -1,0 +1,90 @@
+library(readxl)
+library(clusterProfiler)
+library(gtools)
+library(xlsx)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(ggplot2)
+library(stringr)
+library(tibble)
+library(ggupset)
+library(DOSE)
+library(AnnotationDbi)
+
+#Set WD
+setwd('D:/CancerData')
+
+#Read data
+DEG<- read.csv('Glioma_DEGS.csv')
+
+#Make dataframe
+data.frame(DEG)
+
+#Convert Symbol to ENTREZID
+Converted <- bitr(unique(DEG$Gene.symbol), fromType = "SYMBOL",
+                  toType = c("ENTREZID"),
+                  OrgDb = org.Hs.eg.db) 
+
+head(Converted)
+
+
+#Data for FEA
+Gene_List <- Converted$ENTREZID
+Gene_List = sort(Gene_List, decreasing = TRUE)
+head(Gene_List)
+
+#Overrepresentation (ORA) Analysis
+ORA_Result <- enrichGO(gene     = Gene_List,
+                       OrgDb         = org.Hs.eg.db,
+                       keyType       = 'ENTREZID',
+                       ont           = "BP",
+                       pAdjustMethod = "BH",
+                       pvalueCutoff  = 0.01,
+                       qvalueCutoff  = 0.01)
+
+#KEGG Pathway Analysis
+KEGG <- enrichKEGG(gene         = Gene_List,
+                   organism     = 'hsa',
+                   pvalueCutoff = 1)
+head(KEGG)
+
+#WikiPathway Analysis
+enrichWP(Gene_List, organism = "Homo sapiens") 
+
+head(enrichWP)
+
+#Disease Ontolog
+x <- enrichDO(gene          = Gene_List,
+              ont           = "DO",
+              pvalueCutoff  = 0.05,
+              pAdjustMethod = "BH",)
+
+
+#Gene-Disease Network
+dgn <- enrichDGN(Gene_List) 
+head(dgn)
+
+#Cancer Gene Overrepresentation
+ncg <- enrichNCG(Gene_List) 
+head(ncg)
+
+
+
+#Visualization
+#Dotplot
+dotplot(x, showCategory=15) + ggtitle("Barplot for Something")
+
+#Barplot
+barplot(dgn, showCategory=15) + ggtitle("Barplot for Something")
+
+#Barplot of ORA
+barplot(ego_ORA_90cutoff, split = "ONTOLOGY")+facet_grid(ONTOLOGY~., scale = "free")+ggtitle("Barplot for ORA")
+
+emapplot(ORA_Result,layout="kk")+ ggtitle("Enrichment map for GO_ORA_90cutoffPC")
+
+#Cnetplot
+par(mfrow=c(1,2))
+cnetplot(ORA_Result, circular = TRUE, colorEdge = TRUE, showCategory = 15)
+
+#Heatplot
+heatplot(BP_Result,foldChange=Gene_List, showCategory = 15) + ggtitle("Heatmap for GO_ORA_90cutoff_PC")
